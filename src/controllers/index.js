@@ -1,60 +1,45 @@
-const { v4: uuidv4 } = require("uuid");
-const notes = require("../notes");
+const Note = require("../models/note");
 
-const addNoteHandler = (request, h) => {
+const addNoteHandler = async (request, h) => {
   const { title, tags, body } = request.payload;
-
-  const id = uuidv4();
   const createdAt = new Date().toISOString();
   const updatedAt = createdAt;
 
-  const newNote = {
-    id,
+  const note = new Note({
     title,
     tags,
     body,
     createdAt,
     updatedAt,
-  };
-
-  notes.push(newNote);
-
-  const isSuccess = notes.filter((note) => note.id === id).length > 0;
-
-  if (isSuccess) {
-    const response = h.response({
-      status: "success",
-      message: "Catatan berhasil ditambahkan",
-      data: {
-        noteId: id,
-      },
-    });
-    response.code(201);
-    return response;
-  }
-  const response = h.response({
-    status: "fail",
-    message: "Catatan gagal ditambahkan",
   });
-  response.code(500);
+
+  await note.save();
+
+  const response = h.response({
+    status: "success",
+    message: "Catatan berhasil ditambahkan",
+    data: { noteId: note.id },
+  });
+  response.code(201);
   return response;
 };
 
-const getAllNotesHandler = (request, h) => {
+const getAllNotesHandler = async (request, h) => {
+  const notes = await Note.find();
   const response = h.response({
     message: "Success",
-    data: notes,
+    data: { notes },
   });
 
   return response;
 };
 
-const getNoteByIdHandler = (request, h) => {
+const getNoteByIdHandler = async (request, h) => {
   const { id } = request.params;
 
-  const note = notes.filter((n) => n.id === id)[0];
+  const note = await Note.findById(id);
 
-  if (note !== undefined) {
+  if (note !== null) {
     return {
       status: "success",
       data: {
@@ -70,22 +55,20 @@ const getNoteByIdHandler = (request, h) => {
   return response;
 };
 
-const editNoteByIdHandler = (request, h) => {
+const editNoteByIdHandler = async (request, h) => {
   const { id } = request.params;
 
   const { title, tags, body } = request.payload;
   const updatedAt = new Date().toISOString();
 
-  const index = notes.findIndex((note) => note.id === id);
+  const note = await Note.findByIdAndUpdate(id, {
+    title,
+    tags,
+    body,
+    updatedAt,
+  });
 
-  if (index !== -1) {
-    notes[index] = {
-      ...notes[index],
-      title,
-      tags,
-      body,
-      updatedAt,
-    };
+  if (note !== null) {
     const response = h.response({
       status: "success",
       message: "Catatan berhasil diperbarui",
@@ -95,20 +78,18 @@ const editNoteByIdHandler = (request, h) => {
   }
   const response = h.response({
     status: "fail",
-    message: "Gagal memperbarui catatan. Id tidak ditemukan",
+    message: "Catatan tidak ditemukan",
   });
-
   response.code(404);
   return response;
 };
 
-const deleteNoteByIdHandler = (request, h) => {
+const deleteNoteByIdHandler = async (request, h) => {
   const { id } = request.params;
 
-  const index = notes.findIndex((note) => note.id === id);
+  const note = await Note.findByIdAndDelete(id);
 
-  if (index !== -1) {
-    notes.splice(index, 1);
+  if (note !== null) {
     const response = h.response({
       status: "success",
       message: "Catatan berhasil dihapus",
@@ -116,10 +97,9 @@ const deleteNoteByIdHandler = (request, h) => {
     response.code(200);
     return response;
   }
-
   const response = h.response({
     status: "fail",
-    message: "Catatan gagal dihapus. Id tidak ditemukan",
+    message: "Catatan tidak ditemukan",
   });
   response.code(404);
   return response;
